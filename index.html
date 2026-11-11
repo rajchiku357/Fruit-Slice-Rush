@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0b10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="FRUIT SLICE RUSH - High-energy 3D arcade fruit slicing browser game. Slice juicy fruits, trigger mega combos, and dodge explosive bombs!">
+  <title>FRUIT SLICE RUSH - 3D Arcade Game</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  
+  <link rel="stylesheet" href="/src/styles/main.css">
+  <link rel="stylesheet" href="/src/styles/game.css">
+  <link rel="stylesheet" href="/src/styles/responsive.css">
+
+  <script>
+    // Direct file:// protocol detector
+    if (window.location.protocol === 'file:') {
+      // Auto-redirect to local server immediately
+      try {
+        window.location.replace('http://localhost:5174/');
+      } catch (e) {}
+
+      function showProtocolBanner() {
+        if (document.getElementById('file-protocol-warning-banner')) return;
+        var banner = document.createElement('div');
+        banner.id = 'file-protocol-warning-banner';
+        banner.style.cssText = 'position:fixed;inset:0;background:radial-gradient(circle at 50% 40%,#151726,#0a0b10);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff;box-sizing:border-box;';
+        banner.innerHTML = `
+          <div style="font-size:64px;margin-bottom:14px;filter:drop-shadow(0 0 24px #00ff88);">🍉⚔️</div>
+          <h1 style="font-size:36px;font-weight:900;letter-spacing:2px;background:linear-gradient(180deg,#fff 0%,#00ff88 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px;">FRUIT SLICE RUSH</h1>
+          <div style="background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.45);border-radius:24px;padding:8px 22px;color:#00ff88;font-weight:800;font-size:14px;margin-bottom:20px;letter-spacing:1px;box-shadow:0 0 20px rgba(0,255,136,0.25);">
+            ⚡ 3D ARCADE ENGINE READY
+          </div>
+          <p style="max-width:540px;color:#a0a6c0;font-size:16px;line-height:1.6;margin-bottom:28px;">
+            Click below to play instantly in your browser at high-performance 60 FPS!
+          </p>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+            <a href="http://localhost:5174/" style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#00ff88 0%,#00b4d8 100%);color:#050608;font-weight:900;font-size:18px;padding:16px 36px;border-radius:32px;text-decoration:none;box-shadow:0 0 35px rgba(0,255,136,0.6);letter-spacing:1px;cursor:pointer;">
+              <span>PLAY NOW (PORT 5174)</span> &rarr;
+            </a>
+            <a href="http://127.0.0.1:5174/" style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.2);font-weight:800;font-size:16px;padding:16px 28px;border-radius:32px;text-decoration:none;cursor:pointer;">
+              <span>127.0.0.1:5174</span>
+            </a>
+          </div>
+          <p style="color:#ffd600;font-size:14px;margin-top:28px;font-weight:600;">
+            💡 Or double-click <strong>PLAY_CHROME.bat</strong> in this folder to launch in Google Chrome!
+          </p>
+        `;
+        document.body.appendChild(banner);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', showProtocolBanner);
+      } else {
+        showProtocolBanner();
+      }
+    }
+
+    // Surface any runtime errors cleanly
+    window.addEventListener('error', function(e) {
+      if (window.location.protocol === 'file:') return;
+      console.error('Captured runtime error:', e.message);
+    });
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div id="game-wrapper">
+      <!-- 3D Three.js WebGL Container -->
+      <div id="canvas-container"></div>
+
+      <!-- 2D High-precision Blade Swipe Canvas -->
+      <canvas id="swipe-canvas"></canvas>
+
+      <!-- Screen Juice Splatters -->
+      <div id="juice-splatter-layer"></div>
+
+      <!-- Red Screen Damage Flash -->
+      <div id="damage-flash"></div>
+
+      <!-- Floating 3D/Screen Scores -->
+      <div id="floating-scores-container"></div>
+
+      <!-- Centered Combo Banner Announcement -->
+      <div id="combo-banner"></div>
+
+      <!-- IN-GAME HUD -->
+      <div id="game-hud" style="display: none;">
+        <div class="hud-top-bar">
+          <div class="hud-score-panel">
+            <span class="hud-score-label">Score</span>
+            <span id="hud-score" class="hud-score-value">0</span>
+            <span id="hud-best-score" class="hud-best-score">BEST: 0</span>
+          </div>
+
+          <!-- Classic Mode Lives -->
+          <div id="hud-lives"></div>
+
+          <!-- Time Attack Timer -->
+          <div id="hud-timer-container">
+            <span class="hud-timer-label">TIME</span>
+            <span id="hud-timer">01:00</span>
+          </div>
+
+          <div class="hud-right-panel">
+            <div id="hud-combo-badge">2x COMBO</div>
+            <button id="hud-pause-btn" class="icon-btn" aria-label="Pause Game">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAUSE MODAL -->
+      <div id="pause-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h2 class="modal-title">GAME PAUSED</h2>
+          </div>
+          <div class="gameover-actions">
+            <button id="pause-resume-btn" class="btn-primary">RESUME</button>
+            <button id="pause-restart-btn" class="btn-secondary">RESTART</button>
+            <button id="pause-quit-btn" class="btn-secondary">MAIN MENU</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN MENU -->
+      <div id="main-menu" style="display: flex;">
+        <div class="menu-header">
+          <span class="menu-badge">⚡ 3D ARCADE ACTION</span>
+          <h1 class="game-title">FRUIT SLICE<br>RUSH</h1>
+          <p class="game-subtitle">Fast, Juicy, Lethal</p>
+        </div>
+
+        <div class="menu-center">
+          <!-- Game Mode Selector -->
+          <div class="mode-selector">
+            <button id="mode-classic-btn" class="mode-tab active">CLASSIC (3 LIVES)</button>
+            <button id="mode-timeattack-btn" class="mode-tab">TIME ATTACK (60s)</button>
+          </div>
+
+          <!-- High Score Card -->
+          <div class="best-score-card">
+            <svg class="trophy-icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+              <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 0 0 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+            </svg>
+            <div class="best-score-info">
+              <span>HIGH SCORE</span>
+              <strong id="menu-best-score">0</strong>
+            </div>
+          </div>
+
+          <!-- Play Button -->
+          <button id="menu-play-btn" class="play-btn">
+            <span>PLAY NOW</span>
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Banner Ad Slot (Home) -->
+        <div id="ad-banner-home" class="ad-slot-container"></div>
+
+        <!-- Bottom Actions -->
+        <div class="menu-bottom">
+          <button id="menu-sound-btn" class="icon-btn" aria-label="Toggle Sound">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+          </button>
+          <button id="menu-howtoplay-btn" class="icon-btn" aria-label="How To Play">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/>
+            </svg>
+          </button>
+          <button id="menu-settings-btn" class="icon-btn" aria-label="Settings">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+          </button>
+          <button id="menu-fullscreen-btn" class="icon-btn" aria-label="Toggle Fullscreen">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- GAME OVER SCREEN -->
+      <div id="game-over-screen" style="display: none;">
+        <div class="gameover-card">
+          <span class="gameover-title">GAME OVER</span>
+          <span id="new-record-badge">NEW HIGH SCORE! 🏆</span>
+
+          <div class="gameover-score-wrap">
+            <span class="gameover-score-label">Final Score</span>
+            <div id="gameover-score-val" class="gameover-score-value">0</div>
+          </div>
+
+          <div class="gameover-stats-grid">
+            <div class="stat-item">
+              <span class="stat-label">BEST</span>
+              <span id="gameover-best-val" class="stat-val">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">MAX COMBO</span>
+              <span id="gameover-combo-val" class="stat-val">0x</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">SLICED</span>
+              <span id="gameover-sliced-val" class="stat-val">0</span>
+            </div>
+          </div>
+
+          <div class="gameover-actions">
+            <!-- Rewarded ad extra life option (only shown when provider is ready) -->
+            <button id="gameover-revive-btn" class="btn-revive">
+              WATCH AD: +1 EXTRA LIFE ❤️
+            </button>
+            <button id="gameover-restart-btn" class="btn-primary">PLAY AGAIN</button>
+            <button id="gameover-share-btn" class="btn-secondary">SHARE SCORE 📤</button>
+            <button id="gameover-menu-btn" class="btn-secondary">MAIN MENU</button>
+          </div>
+
+          <!-- Banner Ad Slot (GameOver) -->
+          <div id="ad-banner-gameover" class="ad-slot-container"></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS MODAL -->
+      <div id="settings-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3 class="modal-title">SETTINGS</h3>
+            <button id="close-settings-btn" class="close-btn">&times;</button>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Sound Effects</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-sfx-toggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">SFX Volume</span>
+            <input type="range" id="setting-sfx-volume" min="0" max="1" step="0.05" value="0.8">
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Background Music</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-music-toggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Music Volume</span>
+            <input type="range" id="setting-music-volume" min="0" max="1" step="0.05" value="0.45">
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Screen Shake</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-vibration-toggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-label">Graphics Quality</span>
+            <select id="setting-quality-select">
+              <option value="high">High (Retina / 60fps)</option>
+              <option value="medium">Medium (Battery Saver)</option>
+            </select>
+          </div>
+
+          <button id="setting-reset-scores-btn" class="btn-secondary" style="margin-top: 10px; color: var(--accent-red);">
+            Reset High Scores
+          </button>
+        </div>
+      </div>
+
+      <!-- HOW TO PLAY MODAL -->
+      <div id="howtoplay-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3 class="modal-title">HOW TO PLAY</h3>
+            <button id="close-howtoplay-btn" class="close-btn">&times;</button>
+          </div>
+
+          <div class="how-item">
+            <div class="how-icon">⚔️</div>
+            <div class="how-text">
+              <h4>Slice With Speed</h4>
+              <p>Swipe your finger or drag the mouse to slice launched fruits. Move swiftly to cut through juicy melons, oranges, pineapples, and strawberries!</p>
+            </div>
+          </div>
+
+          <div class="how-item">
+            <div class="how-icon">🔥</div>
+            <div class="how-text">
+              <h4>Combos & Multipliers</h4>
+              <p>Slice 2 or more fruits in a single stroke to unleash massive combo bonus points! Combo x3 (+8 pts), Combo x4 (+15 pts), Combo x5+ (+25 pts)!</p>
+            </div>
+          </div>
+
+          <div class="how-item">
+            <div class="how-icon">💣</div>
+            <div class="how-text">
+              <h4>Dodge Bombs!</h4>
+              <p>Never slice the dark ticking bombs! In Classic Mode, hitting a bomb costs 1 life. In Time Attack, hitting a bomb penalizes your score and time.</p>
+            </div>
+          </div>
+
+          <div class="how-item">
+            <div class="how-icon">⏱️</div>
+            <div class="how-text">
+              <h4>Game Modes</h4>
+              <p><strong>Classic:</strong> 3 lives. Dropped fruits or bombs cost a life. Survive as long as you can!<br><strong>Time Attack:</strong> 60 seconds of pure arcade slicing. Maximize your score!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast Notification -->
+      <div id="share-toast">Score copied to clipboard!</div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
